@@ -12,6 +12,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 
+import java.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import static org.apache.solr.handler.dataimport.DataImportHandlerException.SEVERE;
 import static org.apache.solr.handler.dataimport.DataImportHandlerException.wrapAndThrow;
 
@@ -46,24 +50,33 @@ public class MongoDataSource extends DataSource<Iterator<Map<String, Object>>> {
                     , "Database must be supplied");
         }
 
-        try {
-            Mongo mongo = new Mongo(host, Integer.parseInt(port));
-            mongo.setReadPreference(ReadPreference.secondaryPreferred());
+        List<MongoCredential> credentialList = new ArrayList<MongoCredential>();
 
-            this.mongoConnection = mongo;
-            this.mongoDb = mongo.getDB(databaseName);
-
-            if (username != null) {
-                if (this.mongoDb.authenticate(username, password.toCharArray()) == false) {
-                    throw new DataImportHandlerException(SEVERE
-                            , "Mongo Authentication Failed");
-                }
-            }
-
-        } catch (UnknownHostException e) {
-            throw new DataImportHandlerException(SEVERE
-                    , "Unable to connect to Mongo");
+        if (username != null) {
+            credentialList.add(MongoCredential.createCredential(username,databaseName,password.toCharArray()));
         }
+
+        String[] hosts = host.split(",");
+        List<ServerAddress> servers = IntStream.range(0,hosts.length)
+                .mapToObj(s -> {
+                    try {
+                        return new ServerAddress(hosts[s], Integer.parseInt(port));
+                    } catch (Exception e) {
+                        throw new DataImportHandlerException( SEVERE
+                                , "Unable to connect to Mongo");
+                    }
+                })
+                .collect(Collectors.toList());
+
+
+        MongoClient mongo = new MongoClient(servers, credentialList);
+        mongo.setReadPreference(ReadPreference.secondaryPreferred());
+
+        this.mongoConnection = mongo;
+        this.mongoDb = mongo.getDB(databaseName);
+
+
+
     }
 
     @Override
