@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 
-import java.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -69,12 +68,17 @@ public class MongoDataSource extends DataSource<Iterator<Map<String, Object>>> {
                 .collect(Collectors.toList());
 
 
-        MongoClient mongo = new MongoClient(servers, credentialList);
-        mongo.setReadPreference(ReadPreference.secondaryPreferred());
+        try {
+            MongoClient mongo = new MongoClient(servers, credentialList);
+            mongo.setReadPreference(ReadPreference.secondaryPreferred());
 
-        this.mongoConnection = mongo;
-        this.mongoDb = mongo.getDB(databaseName);
+            this.mongoConnection = mongo;
+            this.mongoDb = mongo.getDB(databaseName);
 
+        } catch (Exception ex){
+            throw new DataImportHandlerException( SEVERE
+                    , "Unable to connect to Mongo");
+        }
 
 
     }
